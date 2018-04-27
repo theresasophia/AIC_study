@@ -1,4 +1,3 @@
-
 rm(list = ls())     # clear objects  
 graphics.off()      # close graphics windows
 ## Taken from v69i12.R
@@ -83,6 +82,8 @@ toEstScale <- Csnippet("
 param_vec <- c(popsize = 10000, Beta = 4, gamma = 1, mu = 1/(80*52),
                theta = 100, S.0 = 90000, I.0 = 10, R.0 = 0, omega=1/4)
 
+
+#load the simulated data set - they were simulated form sir1 and sir 2 as explained below
 read.table("sir1_data.txt") %>%
   arrange(time) -> sir1_dat
 head(sir1_dat)
@@ -91,6 +92,8 @@ read.table("sir2_data.txt") %>%
   arrange(time) -> sir2_dat
 head(sir2_dat)
 
+
+# we start at t0=-10 so the system has time to equilibrate and reach the endemic level
 sir1 <- pomp(data =sir1_dat,
              times = "time",
              t0 = -10,
@@ -110,10 +113,8 @@ sir1 <- pomp(data =sir1_dat,
              fromEstimationScale = fromEstScale,
              params = param_vec)
 
-##Simulate a trajectory
- #sir1 <- simulate(sir1,seed = 1916908L)
- #plot(simulate(sir1))
  plot(sir1)
+ #This is how the data was created
      # a<- simulate(sir1,seed = 1916908L, obs=TRUE, as.data.frame=TRUE)
      # sir1_data<- data.frame(time=a$time[-1],cases=a$cases[-1])
      # plot(sir1_data$cases, type="l")
@@ -135,7 +136,7 @@ sir_box <- rbind(
 sir_fixed_params <- c(param_vec["gamma"],param_vec["omega"],param_vec["theta"],param_vec["mu"],param_vec["popsize"], param_vec["S.0"], param_vec["I.0"], param_vec["R.0"])
 
 
-##Fitting using iterated filtering
+##Fitting using iterated filtering with drawing 8 times from the sir_box
 stew(file="sir1.rda",{
   
   t_global <- system.time({
@@ -154,7 +155,7 @@ stew(file="sir1.rda",{
 },seed=1270401374,kind="L'Ecuyer")
 
 
-
+#visualizing the diagnosistics of iterated filtering
 mifs_global %>%
   conv.rec(c("loglik","nfail","Beta","gamma", "mu", "theta")) %>%
   melt() %>%   mutate(variable = factor(variable))->t
@@ -168,6 +169,7 @@ colnames(t)[4]<- "f"
   theme_bw()
 
 
+  # approximating the liklihood of every mif search outcome
 stew(file="sir1_lik-%d.rda",{
   
   t_global_eval <- system.time({
@@ -255,8 +257,6 @@ sir2 <- pomp(data = sir2_dat,
              fromEstimationScale = fromEstScale,
              params = param_vec2)
 
-plot(simulate(sir2))
-#sir2 <- simulate(sir2)
 plot(sir2)
   # a<- simulate(sir2,seed = 191469908L, obs=TRUE, as.data.frame=TRUE)
   #  sir2_data<- data.frame(time=a$time[-1],cases=a$cases[-1])
