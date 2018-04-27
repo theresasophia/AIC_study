@@ -15,7 +15,7 @@ library(foreach)
 library(doParallel)
 registerDoParallel()
 ##' ## More complex models.
-##' ### Simple SIR.
+##' ### Simple SIRS.
 ##' C snippets expressing the two faces of the measurement model.
 
 dmeas <- "if (ISNA(cases)) {
@@ -85,10 +85,12 @@ param_vec <- c(popsize = 10000, Beta = 4, gamma = 1, mu = 1/(80*52),
 
 #load the simulated data set - they were simulated form sir1 and sir 2 as explained below
 read.table("sir1_data.txt") %>%
+  rbind(data.frame(time=0,cases=NA)) %>%
   arrange(time) -> sir1_dat
 head(sir1_dat)
 
 read.table("sir2_data.txt") %>%
+  rbind(data.frame(time=0,cases=NA)) %>%
   arrange(time) -> sir2_dat
 head(sir2_dat)
 
@@ -144,8 +146,8 @@ stew(file="sir1.rda",{
       mif2(
       sir1,
       start=c(apply(sir_box,1,function(x)runif(1,min=x[1],max=x[2])),sir_fixed_params),
-      Np=2000,
-      Nmif=50,
+      Np=1000,
+      Nmif=20,
       cooling.type="geometric",
       cooling.fraction.50=0.5,
       transform=TRUE,
@@ -191,10 +193,12 @@ cbind(fit=coef(mifs_global[[best]]), true=param_vec)
 
 
 ######################################################################
-## Model with waiting time being gamma instead of exponential
+## Model with waiting time being gamma instead of exponential;
+## the infectious period is now gamma(3,3*gamma) distributed with 
+## mean 1/gamma
 ######################################################################
 sir.step2 <- "
-  double rate[11];
+double rate[11];
 double dN[11];
 double P;
 
@@ -286,8 +290,8 @@ stew(file="sir2.rda",{
       mif2(
         sir2,
         start=c(apply(sir_box,1,function(x)runif(1,min=x[1],max=x[2])),sir_fixed_params),
-        Np=2000,
-        Nmif=50,
+        Np=1000,
+        Nmif=20,
         cooling.type="geometric",
         cooling.fraction.50=0.5,
         transform=TRUE,
@@ -378,8 +382,8 @@ stew(file="sir1_cross.rda",{
       mif2(
         sir1_cross,
         start=c(apply(sir_box,1,function(x)runif(1,min=x[1],max=x[2])),sir_fixed_params),
-        Np=2000,
-        Nmif=50,
+        Np=1000,
+        Nmif=20,
         cooling.type="geometric",
         cooling.fraction.50=0.5,
         transform=TRUE,
@@ -466,8 +470,8 @@ stew(file="sir2_cross.rda",{
       mif2(
         sir2_cross,
         start=c(apply(sir_box,1,function(x)runif(1,min=x[1],max=x[2])),sir_fixed_params),
-        Np=2000,
-        Nmif=50,
+        Np=1000,
+        Nmif=20,
         cooling.type="geometric",
         cooling.fraction.50=0.5,
         transform=TRUE,
@@ -499,7 +503,6 @@ stew(file="sir2_lik_cross-%d.rda",{
     }
   })
 },seed=442141592,kind="L'Ecuyer")
-
 
 
 # 
