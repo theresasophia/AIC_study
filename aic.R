@@ -3,17 +3,17 @@ graphics.off()      # close graphics windows
 ## Taken from v69i12.R
 library(pomp)
 require(doParallel)
-cores <- 8
-registerDoParallel(cores)
-mcopts <- list(set.seed=TRUE)
 library(magrittr)
 library(plyr)
 library(reshape2)
 library(ggplot2)
 library(scales)
 library(foreach)
-library(doParallel)
-registerDoParallel()
+cores <- 8
+registerDoParallel(cores)
+mcopts <- list(set.seed=TRUE)
+
+
 ##' ## More complex models.
 ##' ### Simple SIRS.
 ##' C snippets expressing the two faces of the measurement model.
@@ -185,7 +185,7 @@ stew(file="sir1_lik-%d.rda",{
 
 liks_global
 best <- which.max(liks_global[,1])
-round(liks_global[best,],3)
+sir1_loglik <- round(liks_global[best,],3)
 round(coef(mifs_global[[best]]),3)
 
 
@@ -329,7 +329,7 @@ stew(file="sir2_lik-%d.rda",{
 # 
 liks_global
 best <- which.max(liks_global[,1])
-round(liks_global[best,],3)
+sir2_loglik <- round(liks_global[best,],3) 
 round(coef(mifs_global[[best]]),3)
 
 # 
@@ -396,7 +396,7 @@ stew(file="sir1_cross.rda",{
 
 mifs_global %>%
   conv.rec(c("loglik","nfail","Beta","gamma", "mu", "theta")) %>%
-  melt() %>%   mutate(variable = factor(variable))->t
+  melt() %>% subset(iteration>17)  %>%mutate(variable = factor(variable))->t
 colnames(t)[4]<- "f"
 
 ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
@@ -420,7 +420,7 @@ stew(file="sir1_lik_cross-%d.rda",{
 
 liks_global
 best <- which.max(liks_global[,1])
-round(liks_global[best,],3)
+sir1_cross_loglik <- round(liks_global[best,],3)
 round(coef(mifs_global[[best]]),3)
 
 
@@ -508,5 +508,14 @@ stew(file="sir2_lik_cross-%d.rda",{
 # 
 liks_global
 best <- which.max(liks_global[,1])
-round(liks_global[best,],3)
+sir2_cross_loglik<- round(liks_global[best,],3)
 round(coef(mifs_global[[best]]),3)
+
+
+#logliks of true model and other model 
+#is the difference only due to Onte Carlo noise?
+sir2_loglik
+sir1_cross_loglik
+
+sir1_loglik
+sir2_cross_loglik
