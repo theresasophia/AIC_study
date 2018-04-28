@@ -1,15 +1,16 @@
-rm(list = ls())     # clear objects  
+rm(list = ls())     # clear objects
 graphics.off()      # close graphics windows
 ## Taken from v69i12.R
 library(pomp)
 require(doParallel)
 library(magrittr)
 library(plyr)
+library(dplyr)
 library(reshape2)
 library(ggplot2)
 library(scales)
 library(foreach)
-cores <- 8
+cores <- 4#8
 registerDoParallel(cores)
 mcopts <- list(set.seed=TRUE)
 
@@ -135,12 +136,14 @@ sir_box <- rbind(
   Beta = c(0.5,10)
 )
 
-sir_fixed_params <- c(param_vec["gamma"],param_vec["omega"],param_vec["theta"],param_vec["mu"],param_vec["popsize"], param_vec["S.0"], param_vec["I.0"], param_vec["R.0"])
+#sir_fixed_params <- c(param_vec["gamma"],param_vec["omega"],param_vec["theta"],param_vec["mu"],param_vec["popsize"], param_vec["S.0"], param_vec["I.0"], param_vec["R.0"])
+##hoehle 2018-04-28: more efficient would be
+sir_fixed_params <- param_vec[c("gamma","omega","theta","mu","popsize","S.0","I.0","R.0")]
 
 
 ##Fitting using iterated filtering with drawing 8 times from the sir_box
 stew(file="sir1.rda",{
-  
+
   t_global <- system.time({
     mifs_global <- foreach(i=1:cores,.packages='pomp', .combine=c, .options.multicore=mcopts) %dopar% {
       mif2(
@@ -157,13 +160,16 @@ stew(file="sir1.rda",{
 },seed=1270401374,kind="L'Ecuyer")
 
 
-#visualizing the diagnosistics of iterated filtering
+##visualizing the diagnosistics of iterated filtering
 mifs_global %>%
   conv.rec(c("loglik","nfail","Beta","gamma", "mu", "theta")) %>%
-  melt() %>%   mutate(variable = factor(variable))->t
-colnames(t)[4]<- "f"
+  melt() %>%   mutate(variable = factor(variable)) %>% rename(f=L1) -> t
+##hoehle 2018-04-28: easier and more consistent to use the dplyr rename
+##function colnames(t)[4]<- "f".
+##Not sure why it's necessary to rename though...
 
-  ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
+##Make the plot
+ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
   geom_line()+
   guides(color=FALSE)+
   labs(x="MIF2 Iteration",y="")+
@@ -171,9 +177,9 @@ colnames(t)[4]<- "f"
   theme_bw()
 
 
-  # approximating the liklihood of every mif search outcome
+## approximating the liklihood of every mif search outcome
 stew(file="sir1_lik-%d.rda",{
-  
+
   t_global_eval <- system.time({
     liks_global <- foreach(i=1:cores,.packages='pomp',.combine=rbind, .options.multicore=mcopts) %dopar% {
       evals <- replicate(10, logLik(pfilter(sir1,params=coef(mifs_global[[i]]),Np=1000)))
@@ -189,12 +195,13 @@ sir1_loglik <- round(liks_global[best,],3)
 round(coef(mifs_global[[best]]),3)
 
 
+##Compare true parameters with fitted ones
 cbind(fit=coef(mifs_global[[best]]), true=param_vec)
 
 
 ######################################################################
 ## Model with waiting time being gamma instead of exponential;
-## the infectious period is now gamma(3,3*gamma) distributed with 
+## the infectious period is now gamma(3,3*gamma) distributed with
 ## mean 1/gamma
 ######################################################################
 sir.step2 <- "
@@ -220,7 +227,7 @@ rate[7] = gamma*3 ;        // recovery I3->R
 rate[8] = mu;           // death from I3
 
 rate[9] = mu;           // death from R
-rate[10] = omega;        // waning of immunity 
+rate[10] = omega;        // waning of immunity
 
 dN[0] = rpois(rate[0] * dt);
 
@@ -232,12 +239,12 @@ reulermultinom(2, I3, &rate[7], dt, &dN[7]);
 reulermultinom(2, R, &rate[9], dt, &dN[9]);
 
 //State development: N[0] = birth, N[1] = new infected, N[2] = Dead from S, N[3] = I->R1, N[4] = Dead from I, N[5] = R1->R2, N[6]: dead from R1, ...
-S += dN[0] - dN[1] - dN[2] + dN[10];
+S  += dN[0] - dN[1] - dN[2] + dN[10];
 I1 += dN[1] - dN[3] - dN[4];
-I2 += dN[3] -  dN[5] - dN[6];
-I3 += dN[5] -  dN[7] - dN[8];
-R += dN[7] - dN[9] - dN[10];
-H += dN[1];
+I2 += dN[3] - dN[5] - dN[6];
+I3 += dN[5] - dN[7] - dN[8];
+R  += dN[7] - dN[9] - dN[10];
+H  += dN[1];
 "
 
 param_vec2 <- c(popsize = 10000, Beta = 4, gamma = 1, mu = 1/(80*52), omega = 1/4,
@@ -266,7 +273,7 @@ plot(sir2)
   #  sir2_data<- data.frame(time=a$time[-1],cases=a$cases[-1])
   #  plot(sir2_data$cases, type="l")
   # write.table(sir2_data, file = "~/Dropbox/AIC_study_michael/sir2_data.txt" )
- # # 
+ # #
 
 ##One evaluation of the likelihood?
 fit2 <- pfilter(sir2,params=param_vec2,Np=1000)
@@ -277,14 +284,16 @@ sir_box <- rbind(
   Beta = c(0.5,10)
 )
 
-sir_fixed_params <- c(param_vec2["gamma"],param_vec2["theta"],param_vec2["mu"],param_vec2["popsize"],
-                      param_vec2["S.0"], param_vec2["I1.0"], param_vec2["I2.0"], 
-                      param_vec2["I3.0"], param_vec2["R.0"], param_vec2["omega"])
-
+##hoehle 2018-04-28: looks like code can be optimized
+##sir_fixed_params <- c(param_vec2["gamma"],param_vec2["theta"],param_vec2["mu"],param_vec2["popsize"],
+##                      param_vec2["S.0"], param_vec2["I1.0"], param_vec2["I2.0"],
+##                      param_vec2["I3.0"], param_vec2["R.0"], param_vec2["omega"])
+##better version IMHO -- less prone to copy paste errors:
+sir_fixed_params <- param_vec2[c("gamma","theta","mu","popsize","S.0","I1.0","I2.0","I3.0","R.0","omega")]
 
 ##Fitting using iterated filtering
 stew(file="sir2.rda",{
-  
+
   t_global <- system.time({
     mifs_global <- foreach(i=1:cores,.packages='pomp', .combine=c, .options.multicore=mcopts) %dopar% {
       mif2(
@@ -300,12 +309,12 @@ stew(file="sir2.rda",{
   })
 },seed=1270401374,kind="L'Ecuyer")
 
-# 
-# 
+#
+#used dplyr to rename the column instead of separate call outside the pipeline
 mifs_global %>%
   conv.rec(c("loglik","nfail","Beta","gamma", "mu", "theta")) %>%
-  melt() %>%   mutate(variable = factor(variable))->t
-colnames(t)[4]<- "f"
+  melt() %>%   mutate(variable = factor(variable)) %>% rename(f="L1") -> t
+##colnames(t)[4]<- "f"
 
 ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
   geom_line()+
@@ -315,7 +324,7 @@ ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
   theme_bw()
 
 stew(file="sir2_lik-%d.rda",{
-  
+
   t_global_eval <- system.time({
     liks_global <- foreach(i=1:cores,.packages='pomp',.combine=rbind, .options.multicore=mcopts) %dopar% {
       evals <- replicate(10, logLik(pfilter(sir2,params=coef(mifs_global[[i]]),Np=1000)))
@@ -326,13 +335,13 @@ stew(file="sir2_lik-%d.rda",{
 
 
 
-# 
+#
 liks_global
 best <- which.max(liks_global[,1])
-sir2_loglik <- round(liks_global[best,],3) 
+sir2_loglik <- round(liks_global[best,],3)
 round(coef(mifs_global[[best]]),3)
 
-# 
+#
 # cbind(fit=coef(mifs_global[[best]]), true=param_vec2)
 
 
@@ -370,18 +379,19 @@ sir_box <- rbind(
   Beta = c(0.5,10)
 )
 
-sir_fixed_params <- c(param_vec["gamma"],param_vec["theta"],param_vec["mu"],param_vec["popsize"], 
-                      param_vec["S.0"], param_vec["I.0"], param_vec["R.0"],param_vec["omega"])
-
+##hoehle 2018-04-28: optimised as written previously
+##sir_fixed_params <- c(param_vec["gamma"],param_vec["theta"],param_vec["mu"],param_vec["popsize"],
+##                      param_vec["S.0"], param_vec["I.0"], param_vec["R.0"],param_vec["omega"])
+sir_fixed_params <- param_vec[c("gamma","theta","mu","popsize","S.0","I.0","R.0","omega")]
 
 ##Fitting using iterated filtering
 stew(file="sir1_cross.rda",{
-  
+
   t_global <- system.time({
     mifs_global <- foreach(i=1:cores,.packages='pomp', .combine=c, .options.multicore=mcopts) %dopar% {
       mif2(
         sir1_cross,
-        start=c(apply(sir_box,1,function(x)runif(1,min=x[1],max=x[2])),sir_fixed_params),
+        start=c(apply(sir_box,1,function(x) runif(1,min=x[1],max=x[2])),sir_fixed_params),
         Np=1000,
         Nmif=20,
         cooling.type="geometric",
@@ -393,11 +403,15 @@ stew(file="sir1_cross.rda",{
 },seed=1270401374,kind="L'Ecuyer")
 
 
-
+##[Q]hoehle 2018-04-28: why subset iteration>17?
+##Also optimized the renaming
 mifs_global %>%
   conv.rec(c("loglik","nfail","Beta","gamma", "mu", "theta")) %>%
-  melt() %>% subset(iteration>17)  %>%mutate(variable = factor(variable))->t
-colnames(t)[4]<- "f"
+  melt() %>%
+##  subset(iteration>17) %>%
+  mutate(variable = factor(variable)) %>%
+  rename(f="L1") -> t
+##colnames(t)[4]<- "f"
 
 ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
   geom_line()+
@@ -408,7 +422,7 @@ ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
 
 
 stew(file="sir1_lik_cross-%d.rda",{
-  
+
   t_global_eval <- system.time({
     liks_global <- foreach(i=1:cores,.packages='pomp',.combine=rbind, .options.multicore=mcopts) %dopar% {
       evals <- replicate(10, logLik(pfilter(sir1_cross,params=coef(mifs_global[[i]]),Np=1000)))
@@ -458,13 +472,13 @@ sir_box <- rbind(
 )
 
 sir_fixed_params <- c(param_vec2["gamma"],param_vec2["theta"],param_vec2["mu"],param_vec2["popsize"],
-                      param_vec2["S.0"], param_vec2["I1.0"], param_vec2["I2.0"], 
+                      param_vec2["S.0"], param_vec2["I1.0"], param_vec2["I2.0"],
                       param_vec2["I3.0"], param_vec2["R.0"],param_vec2["omega"])
 
 
 ##Fitting using iterated filtering
 stew(file="sir2_cross.rda",{
-  
+
   t_global <- system.time({
     mifs_global <- foreach(i=1:cores,.packages='pomp', .combine=c, .options.multicore=mcopts) %dopar% {
       mif2(
@@ -480,8 +494,8 @@ stew(file="sir2_cross.rda",{
   })
 },seed=1270401374,kind="L'Ecuyer")
 
-# 
-# 
+#
+#
 mifs_global %>%
   conv.rec(c("loglik","nfail","Beta","gamma", "mu", "theta")) %>%
   melt() %>%   mutate(variable = factor(variable))->t
@@ -495,7 +509,7 @@ ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
   theme_bw()
 
 stew(file="sir2_lik_cross-%d.rda",{
-  
+
   t_global_eval <- system.time({
     liks_global <- foreach(i=1:cores,.packages='pomp',.combine=rbind, .options.multicore=mcopts) %dopar% {
       evals <- replicate(10, logLik(pfilter(sir2_cross,params=coef(mifs_global[[i]]),Np=1000)))
@@ -505,17 +519,31 @@ stew(file="sir2_lik_cross-%d.rda",{
 },seed=442141592,kind="L'Ecuyer")
 
 
-# 
+#
 liks_global
 best <- which.max(liks_global[,1])
 sir2_cross_loglik<- round(liks_global[best,],3)
 round(coef(mifs_global[[best]]),3)
 
 
-#logliks of true model and other model 
-#is the difference only due to Onte Carlo noise?
+#logliks of true model and other model
+#is the difference only due to Monte Carlo noise?
 sir2_loglik
 sir1_cross_loglik
+
+##Maybe better to check directly, if the intervals overlap
+i2_on2 <- sir2_loglik[1] + c(-1,1) * qnorm(0.975) * sir2_loglik[2]
+i1_on2 <- sir1_cross_loglik[1] + c(-1,1) * qnorm(0.975) * sir1_cross_loglik[2]
+
+##Small helper function to assess if two intervals overlap. Assuming
+##i1 and i2 are both sorted so i[1] < i[2].
+overlap <- function(i1, i2) {
+  (i1[2] >= i2[1]) & (i1[1] <= i2[2])
+}
+##They don't overlap, so AIC would not be the same? But we don't find
+##the right model.. (AIC/loglik of cross fitted model is better?)
+overlap(i2_on2, i1_on2)
+sort(c(sir2_loglik=sir2_loglik[1], sir1_cross_loglik=sir1_cross_loglik[1]),decreasing=TRUE)
 
 sir1_loglik
 sir2_cross_loglik
