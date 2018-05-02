@@ -10,11 +10,14 @@ library(reshape2)
 library(ggplot2)
 library(scales)
 library(foreach)
-cores <- 4#8
+cores <- 8
 registerDoParallel(cores)
 mcopts <- list(set.seed=TRUE)
 
+N <-10  # number of loops
+coef_list <- vector("list", N)
 
+for(i in 1:N){
 
 ##' ### Simple SIRS.
 ##' C snippets expressing the two faces of the measurement model.
@@ -85,15 +88,20 @@ param_vec <- c(popsize = 10000, Beta = 4, gamma = 1, mu = 1/(80*52),
 
 
 #load the simulated data set - they were simulated form sir1 and sir 2 as explained below
-read.table("sir1_data.txt") %>%
+read.table(paste("sir1_data",i,".txt", sep="")) %>%
   rbind(data.frame(time=0,cases=NA)) %>%
   arrange(time) -> sir1_dat
 head(sir1_dat)
 
-read.table("sir2_data.txt") %>%
+read.table(paste("sir2_data",i,".txt", sep="")) %>%
   rbind(data.frame(time=0,cases=NA)) %>%
   arrange(time) -> sir2_dat
 head(sir2_dat)
+
+read.table(paste("sir_seas_data",i,".txt", sep="")) %>%
+  rbind(data.frame(time=0,cases=NA)) %>%
+  arrange(time) -> sir_seas_dat
+head(sir_seas_dat)
 
 ##' Construct the pomp object and fill with simulated data.
 # we start at t0=-10 so the system has time to equilibrate and reach the endemic level
@@ -118,18 +126,15 @@ sir1 <- pomp(data =sir1_dat,
 
  plot(sir1)
  #This is how the data was created
-     # a<- simulate(sir1,seed = 1916908L, obs=TRUE, as.data.frame=TRUE)
-     # sir1_data<- data.frame(time=a$time[-1],cases=a$cases[-1])
-     # plot(sir1_data$cases, type="l")
-     # write.table(sir1_data, file = "~/Dropbox/AIC_study_michael/sir1_data.txt" )
+ # # we create 10 simulations, seed starts from 0, 01, etc last 01112345678= 8 and 01112345670 =9
+ #        a<- simulate(sir1,seed = 01112345670, obs=TRUE, as.data.frame=TRUE)
+ #        sir1_data<- data.frame(time=a$time[-1],cases=a$cases[-1])
+ #        plot(sir1_data$cases, type="l")
+ #        write.table(sir1_data, file = "~/Dropbox/AIC_study/AIC_study_git/sir1_data9.txt" )
 
 ######################################################################
 ##Fit model 1
 ######################################################################
-
-##One evaluation of the likelihood?
-fit1 <- pfilter(sir1,params=param_vec,Np=1000)
-logLik(fit1)
 
 
 sir_box <- rbind(
@@ -140,7 +145,7 @@ sir_fixed_params <- param_vec[c("gamma","omega","theta","mu","popsize","S.0","I.
 
 
 ##Fitting using iterated filtering with drawing 8 times from the sir_box
-stew(file="sir1.rda",{
+stew(file=paste("sir1_",i,".rda", sep=""),{
 
   t_global <- system.time({
     mifs_global <- foreach(i=1:cores,.packages='pomp', .combine=c, .options.multicore=mcopts) %dopar% {
@@ -176,7 +181,7 @@ ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
 
 
 ## approximating the liklihood of every mif search outcome
-stew(file="sir1_lik-%d.rda",{
+stew(file=paste("sir1_lik_",i,".rda", sep=""),{
 
   t_global_eval <- system.time({
     liks_global <- foreach(i=1:cores,.packages='pomp',.combine=rbind, .options.multicore=mcopts) %dopar% {
@@ -187,10 +192,16 @@ stew(file="sir1_lik-%d.rda",{
 },seed=442141592,kind="L'Ecuyer")
 
 
-liks_global
+
+aic <- function(k,loglik){
+  2*k-2*loglik
+}
+
+
+
 best <- which.max(liks_global[,1])
 sir1_loglik <- round(liks_global[best,],3)
-round(coef(mifs_global[[best]]),3)
+sir1_aic <- aic(1,sir1_loglik[1])
 
 
 ##Compare true parameters with fitted ones
@@ -267,15 +278,12 @@ sir2 <- pomp(data = sir2_dat,
              params = param_vec2)
 
 plot(sir2)
-  # a<- simulate(sir2,seed = 191469908L, obs=TRUE, as.data.frame=TRUE)
-  #  sir2_data<- data.frame(time=a$time[-1],cases=a$cases[-1])
-  #  plot(sir2_data$cases, type="l")
-  # write.table(sir2_data, file = "~/Dropbox/AIC_study_michael/sir2_data.txt" )
+   #  a<- simulate(sir2,seed = 01234556789, obs=TRUE, as.data.frame=TRUE)
+   #   sir2_data<- data.frame(time=a$time[-1],cases=a$cases[-1])
+   #   plot(sir2_data$cases, type="l")
+   # write.table(sir2_data, file = "~/Dropbox/AIC_study/AIC_study_git/sir2_data9.txt" )
  # #
 
-##One evaluation of the likelihood?
-fit2 <- pfilter(sir2,params=param_vec2,Np=1000)
-logLik(fit2)
 
 
 sir_box <- rbind(
@@ -286,7 +294,7 @@ sir_box <- rbind(
 sir_fixed_params <- param_vec2[c("gamma","theta","mu","popsize","S.0","I1.0","I2.0","I3.0","R.0","omega")]
 
 ##Fitting using iterated filtering
-stew(file="sir2.rda",{
+stew(file=paste("sir2_",i,".rda", sep=""),{
 
   t_global <- system.time({
     mifs_global <- foreach(i=1:cores,.packages='pomp', .combine=c, .options.multicore=mcopts) %dopar% {
@@ -317,7 +325,7 @@ ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
   facet_wrap(~variable,scales="free_y",ncol=2)+
   theme_bw()
 
-stew(file="sir2_lik-%d.rda",{
+stew(file=paste("sir2_lik_",i,".rda", sep=""),{
 
   t_global_eval <- system.time({
     liks_global <- foreach(i=1:cores,.packages='pomp',.combine=rbind, .options.multicore=mcopts) %dopar% {
@@ -329,17 +337,9 @@ stew(file="sir2_lik-%d.rda",{
 
 
 
-#
-liks_global
 best <- which.max(liks_global[,1])
 sir2_loglik <- round(liks_global[best,],3)
-round(coef(mifs_global[[best]]),3)
-
-#
-# cbind(fit=coef(mifs_global[[best]]), true=param_vec2)
-
-
-
+sir2_aic <- aic(1,sir2_loglik[1])
 
 
 ######################################################################
@@ -364,10 +364,6 @@ sir1_cross <- pomp(data =sir2_dat,
              toEstimationScale = toEstScale,
              fromEstimationScale = fromEstScale,
              params = param_vec)
-plot(sir1_cross)
-
-fit2_cross <- pfilter(sir1_cross,params=param_vec,Np=1000)
-logLik(fit2_cross)
 
 
 sir_box <- rbind(
@@ -377,7 +373,7 @@ sir_box <- rbind(
 sir_fixed_params <- param_vec[c("gamma","theta","mu","popsize","S.0","I.0","R.0","omega")]
 
 ##Fitting using iterated filtering
-stew(file="sir1_cross.rda",{
+stew(file=paste("sir1_cross_",i,".rda", sep=""),{
 
   t_global <- system.time({
     mifs_global <- foreach(i=1:cores,.packages='pomp', .combine=c, .options.multicore=mcopts) %dopar% {
@@ -411,7 +407,7 @@ ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
   theme_bw()
 
 
-stew(file="sir1_lik_cross-%d.rda",{
+stew(file=paste("sir1_cross_lik_",i,".rda", sep=""),{
 
   t_global_eval <- system.time({
     liks_global <- foreach(i=1:cores,.packages='pomp',.combine=rbind, .options.multicore=mcopts) %dopar% {
@@ -422,15 +418,10 @@ stew(file="sir1_lik_cross-%d.rda",{
 },seed=442141592,kind="L'Ecuyer")
 
 
-liks_global
+
 best <- which.max(liks_global[,1])
 sir1_cross_loglik <- round(liks_global[best,],3)
-round(coef(mifs_global[[best]]),3)
-
-
-cbind(fit=coef(mifs_global[[best]]), true=param_vec)
-
-
+sir1_cross_aic <- aic(1,sir1_cross_loglik[1])
 
 ######################################################################
 ##Fit model 2 to the data of model 1
@@ -455,8 +446,6 @@ sir2_cross <- pomp(data = sir1_dat,
                    params = param_vec2)
 
 
-plot(sir2_cross)
-
 sir_box <- rbind(
   Beta = c(0.5,10)
 )
@@ -465,7 +454,7 @@ sir_fixed_params <- param_vec2[c("gamma","theta","mu","popsize","S.0","I1.0","I2
 
 
 ##Fitting using iterated filtering
-stew(file="sir2_cross.rda",{
+stew(file=paste("sir2_cross_",i,".rda", sep=""),{
 
   t_global <- system.time({
     mifs_global <- foreach(i=1:cores,.packages='pomp', .combine=c, .options.multicore=mcopts) %dopar% {
@@ -496,7 +485,7 @@ ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
   facet_wrap(~variable,scales="free_y",ncol=2)+
   theme_bw()
 
-stew(file="sir2_lik_cross-%d.rda",{
+stew(file=paste("sir2_cross_lik_",i,".rda", sep=""),{
 
   t_global_eval <- system.time({
     liks_global <- foreach(i=1:cores,.packages='pomp',.combine=rbind, .options.multicore=mcopts) %dopar% {
@@ -507,11 +496,10 @@ stew(file="sir2_lik_cross-%d.rda",{
 },seed=442141592,kind="L'Ecuyer")
 
 
-#
-liks_global
+
 best <- which.max(liks_global[,1])
 sir2_cross_loglik<- round(liks_global[best,],3)
-round(coef(mifs_global[[best]]),3)
+sir2_cross_aic <- aic(1,sir2_cross_loglik[1])
 
 
 #logliks of true model and other model
@@ -577,13 +565,6 @@ param_vec_seas <- c(popsize = 10000, Beta = 4, gamma = 1, mu = 1/(80*52),
                theta = 100, S.0 = 90000, I.0 = 10, R.0 = 0, omega=1/4, phi=0, rho=0.6)
 
 
-
-read.table("sir_seas_data.txt") %>%
-  rbind(data.frame(time=0,cases=NA)) %>%
-  arrange(time) -> sir_seas_dat
-head(sir_seas_dat)
-
-
 fromEstScale_seas <- Csnippet("
  TBeta = exp(Beta);
                          Tgamma = exp(gamma);
@@ -623,17 +604,12 @@ sir_seas <- pomp(data = sir_seas_dat,
              toEstimationScale = toEstScale_seas,
              fromEstimationScale = fromEstScale_seas,
              params = param_vec_seas)
-plot(sir_seas)
-plot(simulate(sir_seas))
 
-
-#a<- simulate(sir_seas, obs=TRUE, as.data.frame=TRUE)
-#sir1_data<- data.frame(time=a$time[-1],cases=a$cases[-1])
-#plot(sir1_data$cases, type="l")
-#write.table(sir1_data, file = "~/Dropbox/AIC_study/AIC_study_git/sir_seas_data.txt" )
-
-fit1 <- pfilter(sir_seas,params=param_vec_seas,Np=1000)
-logLik(fit1)
+# until 01122344566= 6, then 77 etc
+# a<- simulate(sir_seas, seed=7789,obs=TRUE, as.data.frame=TRUE)
+# sir1_data<- data.frame(time=a$time[-1],cases=a$cases[-1])
+# plot(sir1_data$cases, type="l")
+# write.table(sir1_data, file = "~/Dropbox/AIC_study/AIC_study_git/sir_seas_data9.txt" )
 
 
 sir_box <- rbind(
@@ -646,7 +622,7 @@ sir_fixed_params <- param_vec_seas[c("gamma","omega","theta","mu","popsize","S.0
 
 
 ##Fitting using iterated filtering with drawing 8 times from the sir_box
-stew(file="sir_seas.rda",{
+stew(file=paste("sir_seas_",i,".rda", sep=""),{
   
   t_global <- system.time({
     mifs_global <- foreach(i=1:8,.packages='pomp', .combine=c, .options.multicore=mcopts) %dopar% {
@@ -667,7 +643,7 @@ stew(file="sir_seas.rda",{
 ##visualizing the diagnosistics of iterated filtering
 mifs_global %>%
   conv.rec(c("loglik","nfail","Beta","phi", "rho", "theta")) %>%
-  melt() %>%  subset(iteration>17) %>%  mutate(variable = factor(variable)) %>% rename(f=L1) -> t
+  melt() %>%  subset(iteration>0) %>%  mutate(variable = factor(variable)) %>% rename(f=L1) -> t
 
 ##Make the plot
 ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
@@ -679,10 +655,10 @@ ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
 
 
 ## approximating the liklihood of every mif search outcome
-stew(file="sir_Seas_lik-%d.rda",{
+stew(file=paste("sir_seas_lik_",i,".rda", sep=""),{
   
   t_global_eval <- system.time({
-    liks_global <- foreach(i=1:8,.packages='pomp',.combine=rbind, .options.multicore=mcopts) %dopar% {
+    liks_global <- foreach(i=1:cores,.packages='pomp',.combine=rbind, .options.multicore=mcopts) %dopar% {
       evals <- replicate(10, logLik(pfilter(sir_seas,params=coef(mifs_global[[i]]),Np=1000)))
       logmeanexp(evals, se=TRUE)
     }
@@ -690,17 +666,15 @@ stew(file="sir_Seas_lik-%d.rda",{
 },seed=442141592,kind="L'Ecuyer")
 
 
-liks_global
+
 best <- which.max(liks_global[,1])
 sir_seas_loglik <- round(liks_global[best,],3)
-round(coef(mifs_global[[best]]),3)
+sir_seas_aic <- aic(3,sir_seas_loglik[1])
 
 
 ##########################################
 ## Fit model 1 to data from model seas
 ##########################################
-
-
 
 sir1_cross_seas <- pomp(data =sir_seas_dat,
                    times = "time",
@@ -729,7 +703,7 @@ sir_box <- rbind(
 sir_fixed_params <- param_vec[c("gamma","theta","mu","popsize","S.0","I.0","R.0","omega")]
 
 ##Fitting using iterated filtering
-stew(file="sir1_seas_cross.rda",{
+stew(file=paste("sir1_cross_seas_",i,".rda", sep=""),{
   
   t_global <- system.time({
     mifs_global <- foreach(i=1:8,.packages='pomp', .combine=c, .options.multicore=mcopts) %dopar% {
@@ -765,10 +739,10 @@ ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
   theme_bw()
 
 
-stew(file="sir1_lik_cross_seas-%d.rda",{
+stew(file=paste("sir1_cross_seas_lik_",i,".rda", sep=""),{
   
   t_global_eval <- system.time({
-    liks_global <- foreach(i=1:8,.packages='pomp',.combine=rbind, .options.multicore=mcopts) %dopar% {
+    liks_global <- foreach(i=1:cores,.packages='pomp',.combine=rbind, .options.multicore=mcopts) %dopar% {
       evals <- replicate(10, logLik(pfilter(sir1_cross_seas,params=coef(mifs_global[[i]]),Np=1000)))
       logmeanexp(evals, se=TRUE)
     }
@@ -776,13 +750,10 @@ stew(file="sir1_lik_cross_seas-%d.rda",{
 },seed=442141592,kind="L'Ecuyer")
 
 
-liks_global
 best <- which.max(liks_global[,1])
 sir1_seas_cross_loglik <- round(liks_global[best,],3)
-round(coef(mifs_global[[best]]),3)
+sir1_cross_seas_aic <- aic(1,sir1_seas_cross_loglik[1])
 
-
-cbind(fit=coef(mifs_global[[best]]), true=param_vec)
 
 
 
@@ -809,17 +780,13 @@ sir_seas_cross <- pomp(data = sir1_dat,
                  toEstimationScale = toEstScale_seas,
                  fromEstimationScale = fromEstScale_seas,
                  params = param_vec_seas)
-plot(sir_seas_cross)
-plot(simulate(sir_seas))
+
 
 
 #a<- simulate(sir_seas, obs=TRUE, as.data.frame=TRUE)
 #sir1_data<- data.frame(time=a$time[-1],cases=a$cases[-1])
 #plot(sir1_data$cases, type="l")
 #write.table(sir1_data, file = "~/Dropbox/AIC_study/AIC_study_git/sir_seas_data.txt" )
-
-fit1 <- pfilter(sir_seas_cross,params=param_vec_seas,Np=1000)
-logLik(fit1)
 
 
 sir_box <- rbind(
@@ -833,7 +800,7 @@ sir_fixed_params <- param_vec[c("gamma","omega","theta","mu","popsize","S.0","I.
 
 
 ##Fitting using iterated filtering with drawing 8 times from the sir_box
-stew(file="sir_seas_cross.rda",{
+stew(file=paste("sir_seas_cross_",i,".rda", sep=""),{
   
   t_global <- system.time({
     mifs_global <- foreach(i=1:8,.packages='pomp', .combine=c, .options.multicore=mcopts) %dopar% {
@@ -854,7 +821,7 @@ stew(file="sir_seas_cross.rda",{
 ##visualizing the diagnosistics of iterated filtering
 mifs_global %>%
   conv.rec(c("loglik","nfail","Beta","phi", "rho", "theta")) %>%
-  melt() %>%  subset(iteration>17) %>%  mutate(variable = factor(variable)) %>% rename(f=L1) -> t
+  melt() %>%  subset(iteration>0) %>%  mutate(variable = factor(variable)) %>% rename(f=L1) -> t
 
 
 ##Make the plot
@@ -867,7 +834,7 @@ ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
 
 
 ## approximating the liklihood of every mif search outcome
-stew(file="sir_Seas_lik_cross-%d.rda",{
+stew(file=paste("sir_seas_cross_lik_",i,".rda", sep=""),{
   
   t_global_eval <- system.time({
     liks_global <- foreach(i=1:8,.packages='pomp',.combine=rbind, .options.multicore=mcopts) %dopar% {
@@ -877,25 +844,31 @@ stew(file="sir_Seas_lik_cross-%d.rda",{
   })
 },seed=442141592,kind="L'Ecuyer")
 
-liks_global
 best <- which.max(liks_global[,1])
 sir_seas_cross_loglik <- round(liks_global[best,],3)
-round(coef(mifs_global[[best]]),3)
-
-sir1_loglik[1]
-
-sort(c(sir2_loglik=sir2_loglik[1], sir1_cross_loglik=sir1_cross_loglik[1]),decreasing=TRUE)
+sir_seas_cross_aic<- aic(3,sir_seas_cross_loglik[1])
 
 
+res<- c(sir1_aic=sir1_aic,
+        sir2_aic=sir2_aic,
+        sir1_cross_aic=sir1_cross_aic,
+        sir2_cross_aic=sir2_cross_aic,
+        sir_seas_aic=sir_seas_aic,
+        sir_seas_cross_aic=sir_seas_cross_aic,
+        sir1_cross_seas_aic=sir1_cross_seas_aic)
 
-aic <- function(k,loglik){
-  2*k-2*loglik
+coef_list[[i]] <-  res
 }
 
 
-aic_sir1 <- aic(1,sir1_loglik[1])
-aic_sir_seas_cross <- aic(3,sir_seas_cross_loglik[1])
+coef_list
+t(sapply(coef_list, c))[,c("sir1_aic","sir2_cross_aic")]
+t(sapply(coef_list, c))[,c("sir2_aic","sir1_cross_aic")]
+t(sapply(coef_list, c))[,c("sir_seas_aic","sir1_cross_seas_aic")]
+t(sapply(coef_list, c))[,c("sir1_aic","sir_seas_cross_aic")]
 
-aic_sir_seas <- aic(3,sir_seas_loglik[1])
-aic_sir1_seas_cross_loglik <- aic(1,sir1_seas_cross_loglik [1])
+sum(t(sapply(coef_list, c))[,c("sir1_aic")]<t(sapply(coef_list, c))[,c("sir2_cross_aic")])
+sum(t(sapply(coef_list, c))[,c("sir2_aic")]<t(sapply(coef_list, c))[,c("sir1_cross_aic")])
 
+sum(t(sapply(coef_list, c))[,c("sir_seas_aic")]<t(sapply(coef_list, c))[,c("sir1_cross_seas_aic")])
+sum(t(sapply(coef_list, c))[,c("sir1_aic")]<t(sapply(coef_list, c))[,c("sir_seas_cross_aic")])
