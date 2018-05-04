@@ -169,9 +169,7 @@ stew(file=paste("sir1_",i,".rda", sep=""),{
 mifs_global %>%
   conv.rec(c("loglik","nfail","Beta","gamma", "mu", "theta")) %>%
   melt() %>%   mutate(variable = factor(variable)) %>% rename(f=L1) -> t
-##hoehle 2018-04-28: easier and more consistent to use the dplyr rename
-##function colnames(t)[4]<- "f".
-##Not sure why it's necessary to rename though...
+
 
 ##Make the plot
 ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
@@ -194,13 +192,13 @@ stew(file=paste("sir1_lik_",i,".rda", sep=""),{
 },seed=442141592,kind="L'Ecuyer")
 
 
-
+# function to caluclate the AIC
 aic <- function(k,loglik){
   2*k-2*loglik
 }
 
 
-
+# save the MLE-logLik
 best <- which.max(liks_global[,1])
 sir1_loglik <- round(liks_global[best,],3)
 sir1_aic <- aic(1,sir1_loglik[1])
@@ -292,7 +290,7 @@ sir_box <- rbind(
   Beta = c(0.5,10)
 )
 
-##better version IMHO -- less prone to copy paste errors:
+
 sir_fixed_params <- param_vec2[c("gamma","theta","mu","popsize","S.0","I1.0","I2.0","I3.0","R.0","omega")]
 
 ##Fitting using iterated filtering

@@ -26,7 +26,7 @@ sir.step <- "
   P = S + I + R;
 
   rate[0] = mu * P;       // birth
-  rate[1] = Beta * I / P; // transmission
+  rate[1] = beta * I / P; // transmission
   rate[2] = mu;           // death from S
   rate[3] = gamma;        // recovery
   rate[4] = mu;           // death from I
@@ -46,20 +46,20 @@ sir.step <- "
 
 ##' Construct the pomp object and fill with simulated data.
 fromEstScale <- Csnippet("
- TBeta = exp(Beta);
+ Tbeta = exp(beta);
  Tgamma = exp(gamma);
  Tmu = exp(mu);
  Ttheta = exp(theta);
 ")
 
 toEstScale <- Csnippet("
- TBeta = log(Beta);
+ Tbeta = log(beta);
  Tgamma = log(gamma);
  Tmu = log(mu);
  Ttheta = log(theta);
 ")
 
-param_vec1 <- c(popsize = 5e+05, Beta = 400, gamma = 26, mu = 1/50,
+param_vec1 <- c(popsize = 5e+05, beta = 400, gamma = 26, mu = 1/50,
                theta = 100, S.0 = 26/400, I.0 = 0.002, R.0 = 1)
 
 sir1 <- pomp(data = data.frame(cases = NA,
@@ -71,7 +71,7 @@ sir1 <- pomp(data = data.frame(cases = NA,
              rprocess = euler.sim(step.fun = Csnippet(sir.step),
                                   delta.t = 1/52/20),
              statenames = c("S", "I", "R", "H"),
-             paramnames = c("gamma", "mu", "theta", "Beta", "popsize", "S.0", "I.0", "R.0"),
+             paramnames = c("gamma", "mu", "theta", "beta", "popsize", "S.0", "I.0", "R.0"),
              zeronames = c("H"),
              initializer = function(params, t0, ...) {
                fracs <- params[c("S.0", "I.0", "R.0")]
@@ -97,12 +97,12 @@ options(ops)
 m1 <-  mif2(
   sir1,
   start=param_vec1, ##start at true values
-  Np=100,
-  Nmif=10,
+  Np=2000,
+  Nmif=50,
   cooling.type="geometric",
   cooling.fraction.50=0.5,
   transform=TRUE,
-  rw.sd=rw.sd(Beta=0.02,gamma=0.02,mu=0.02, theta=0.02))
+  rw.sd=rw.sd(beta=0.02,gamma=0.02,mu=0.02, theta=0.02))
 
 summary(m1)
 
@@ -131,7 +131,7 @@ sir.step2 <- "
   P = S + I + (R1 + R2 + R3);
 
   rate[0] = mu * P;       // birth
-  rate[1] = Beta * I / P; // transmission
+  rate[1] = beta * I / P; // transmission
   rate[2] = mu;           // death from S
 
   //From I->R (now R1, R2, R3) to mimic gamma
@@ -164,7 +164,7 @@ sir.step2 <- "
   H += dN[1];
 "
 
-param_vec2 <- c(popsize = 5e+05, Beta = 400, gamma = 26, mu = 1/50,
+param_vec2 <- c(popsize = 5e+05, beta = 400, gamma = 26, mu = 1/50,
                theta = 100, S.0 = 26/400, I.0 = 0.002, R1.0 = 1, R2.0 = 0, R3.0 = 0)
 
 sir2 <- pomp(data = data.frame(cases = NA,
@@ -176,7 +176,7 @@ sir2 <- pomp(data = data.frame(cases = NA,
              rprocess = euler.sim(step.fun = Csnippet(sir.step2),
                                   delta.t = 1/52/20),
              statenames = c("S", "I", "R1", "R2", "R3", "H"),
-             paramnames = c("gamma", "mu", "theta", "Beta", "popsize", "S.0", "I.0", "R1.0", "R2.0", "R3.0"),
+             paramnames = c("gamma", "mu", "theta", "beta", "popsize", "S.0", "I.0", "R1.0", "R2.0", "R3.0"),
              zeronames = c("H"),
              initializer = function(params, t0, ...) {
                fracs <- params[c("S.0", "I.0", "R1.0", "R2.0", "R3.0")]
@@ -194,12 +194,12 @@ plot(sir2)
 m2 <-  mif2(
   sir2,
   start=param_vec2, ##start at true values
-  Np=100,
-  Nmif=10,
+  Np=2000,
+  Nmif=50,
   cooling.type="geometric",
   cooling.fraction.50=0.5,
   transform=TRUE,
-  rw.sd=rw.sd(Beta=0.02,gamma=0.02,mu=0.02, theta=0.02))
+  rw.sd=rw.sd(beta=0.02,gamma=0.02,mu=0.02, theta=0.02))
 
 summary(m2)
 
@@ -228,7 +228,7 @@ sir1 <- pomp(data = data.frame(cases = as.numeric(sir2@data),
              rprocess = euler.sim(step.fun = Csnippet(sir.step),
                                   delta.t = 1/52/20),
              statenames = c("S", "I", "R", "H"),
-             paramnames = c("gamma", "mu", "theta", "Beta", "popsize", "S.0", "I.0", "R.0"),
+             paramnames = c("gamma", "mu", "theta", "beta", "popsize", "S.0", "I.0", "R.0"),
              zeronames = c("H"),
              initializer = function(params, t0, ...) {
                fracs <- params[c("S.0", "I.0", "R.0")]
@@ -242,12 +242,12 @@ sir1 <- pomp(data = data.frame(cases = as.numeric(sir2@data),
 m1 <-  mif2(
   sir1,
   start=param_vec1, ##start at true values
-  Np=100,
-  Nmif=10,
+  Np=2000,
+  Nmif=50,
   cooling.type="geometric",
   cooling.fraction.50=0.5,
   transform=TRUE,
-  rw.sd=rw.sd(Beta=0.02,gamma=0.02,mu=0.02, theta=0.02))
+  rw.sd=rw.sd(beta=0.02,gamma=0.02,mu=0.02, theta=0.02))
 
 summary(m1)
 
@@ -259,7 +259,7 @@ cbind(fit=coef(m1), true=param_vec1)
 logLik(m1)
 
 ##Model likelihood at MLE found by MIF
-fit1 <- pfilter(sir1,params=coef(m1),Np=100)
+fit1 <- pfilter(sir1,params=coef(m1),Np=5000)
 ll1 <- logLik(fit1)
 
 ##Compare the two likelihoods. Did the MIF2 run long enough in each case?
