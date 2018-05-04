@@ -1,6 +1,6 @@
 rm(list = ls())     # clear objects
-graphics.off()      # close graphics windows
-## Taken from v69i12.R
+graphics.off()      #close graphics windows
+#' Taken from v69i12.R
 library(pomp)
 require(doParallel)
 library(magrittr)
@@ -17,17 +17,17 @@ mcopts <- list(set.seed=TRUE)
 N <- 10  # number of simulations to generate
 coef_list <- vector("list", N)
 
-for (i in 1:N) {
+for(i in 1:N){
 
-##' ### Simple SIRS.
+##' Simple SIRS.
 ##' C snippets expressing the two faces of the measurement model.
 
-#hoehle 2018-05-03: when/where is give_log defined?
+#'hoehle 2018-05-03: whenwhere is give_log defined?
 dmeas <- "if (ISNA(cases)) {
                   lik = (give_log) ? 0 : 1;
                   } else {
                   lik =  dnbinom_mu(cases, theta, H, 1);
-                   lik = (give_log) ? lik : exp(lik);}
+                  lik = (give_log) ? lik : exp(lik);}
 "
 
 rmeas <- "
@@ -88,7 +88,7 @@ param_vec <- c(popsize = 10000, Beta = 4, gamma = 1, mu = 1/(80*52),
                theta = 100, S.0 = 90000, I.0 = 10, R.0 = 0, omega=1/4)
 
 
-#load the simulated data set - they were simulated form sir1 and sir 2 as explained below
+#'load the simulated data set - they were simulated form sir1 and sir 2 as explained below
 read.table(paste("sir1_data",i,".txt", sep="")) %>%
   rbind(data.frame(time=0,cases=NA)) %>%
   arrange(time) -> sir1_dat
@@ -104,8 +104,8 @@ read.table(paste("sir_seas_data",i,".txt", sep="")) %>%
   arrange(time) -> sir_seas_dat
 head(sir_seas_dat)
 
-##' Construct the pomp object and fill with simulated data.
-# we start at t0=-10 so the system has time to equilibrate and reach the endemic level
+#' Construct the pomp object and fill with simulated data.
+#' we start at t0=-10 so the system has time to equilibrate and reach the endemic level
 sir1 <- pomp(data =sir1_dat,
              times = "time",
              t0 = -10,
@@ -126,13 +126,13 @@ sir1 <- pomp(data =sir1_dat,
              params = param_vec)
 
  plot(sir1)
- #This is how the data was created
- # # we create 10 simulations, seed starts from 0, 01, etc last 01112345678= 8 and 01112345670 =9
- # hoehle 2018-05-03: why not seed = 01112345670 + N?
- #        a<- simulate(sir1,seed = 01112345670, obs=TRUE, as.data.frame=TRUE)
- #        sir1_data<- data.frame(time=a$time[-1],cases=a$cases[-1])
- #        plot(sir1_data$cases, type="l")
- #        write.table(sir1_data, file = "~/Dropbox/AIC_study/AIC_study_git/sir1_data9.txt" )
+ #'This is how the data was created
+ #'  we create 10 simulations, seed starts from 0, 01, etc last 01112345678= 8 and 01112345670 =9
+ #' hoehle 2018-05-03: why not seed = 01112345670 + N?
+ #'        a<- simulate(sir1,seed = 01112345670, obs=TRUE, as.data.frame=TRUE)
+ #'        sir1_data<- data.frame(time=a$time[-1],cases=a$cases[-1])
+ #'        plot(sir1_data$cases, type="l")
+ #'        write.table(sir1_data, file = "~/Dropbox/AIC_study/AIC_study_git/sir1_data9.txt" )
 
 ######################################################################
 ##Fit model 1
@@ -146,7 +146,7 @@ sir_box <- rbind(
 sir_fixed_params <- param_vec[c("gamma","omega","theta","mu","popsize","S.0","I.0","R.0")]
 
 
-##Fitting using iterated filtering with drawing 8 times from the sir_box
+#' Fitting using iterated filtering with drawing 8 times from the sir_box
 stew(file=paste("sir1_",i,".rda", sep=""),{
 
   t_global <- system.time({
@@ -863,13 +863,8 @@ res<- c(sir1_aic=sir1_aic,
 coef_list[[i]] <-  res
 }
 
-##hoehle 2018-05-03: hier fehlt ein Kommentar, was nun hier passiert?
-coef_list
+
 names(coef_list) <- 1:10
-t(sapply(coef_list, c))[,c("sir1_aic","sir2_cross_aic")]
-t(sapply(coef_list, c))[,c("sir2_aic","sir1_cross_aic")]
-t(sapply(coef_list, c))[,c("sir_seas_aic","sir1_cross_seas_aic")]
-t(sapply(coef_list, c))[,c("sir1_aic","sir_seas_cross_aic")]
 
 ##hoehle 2018-05-03: better imho - do it tibble style
 tbl <- as.data.frame(t(bind_rows(coef_list)))
@@ -882,9 +877,3 @@ tbl %>% summarise( `1betterThan2_on1` = mean(sir1_aic < sir2_cross_aic),
                    `seas_1betterThan2_on1` = mean(sir_seas_aic < sir1_cross_seas_aic),
                    `seas_2betterThan1_on2` = mean(sir1_aic < sir_seas_cross_aic))
 
-##hoehle 2018-05-03: this is ugly code :-)
-# sum(t(sapply(coef_list, c))[,c("sir1_aic")]<t(sapply(coef_list, c))[,c("sir2_cross_aic")])
-# sum(t(sapply(coef_list, c))[,c("sir2_aic")]<t(sapply(coef_list, c))[,c("sir1_cross_aic")])
-# 
-# sum(t(sapply(coef_list, c))[,c("sir_seas_aic")]<t(sapply(coef_list, c))[,c("sir1_cross_seas_aic")])
-# sum(t(sapply(coef_list, c))[,c("sir1_aic")]<t(sapply(coef_list, c))[,c("sir_seas_cross_aic")])
