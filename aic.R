@@ -14,14 +14,15 @@ cores <- 8
 registerDoParallel(cores)
 mcopts <- list(set.seed=TRUE)
 
-N <-10  # number of loops
+N <- 10  # number of simulations to generate
 coef_list <- vector("list", N)
 
-for(i in 1:N){
+for (i in 1:N) {
 
 ##' ### Simple SIRS.
 ##' C snippets expressing the two faces of the measurement model.
 
+#hoehle 2018-05-03: when/where is give_log defined?
 dmeas <- "if (ISNA(cases)) {
                   lik = (give_log) ? 0 : 1;
                   } else {
@@ -127,6 +128,7 @@ sir1 <- pomp(data =sir1_dat,
  plot(sir1)
  #This is how the data was created
  # # we create 10 simulations, seed starts from 0, 01, etc last 01112345678= 8 and 01112345670 =9
+ # hoehle 2018-05-03: why not seed = 01112345670 + N?
  #        a<- simulate(sir1,seed = 01112345670, obs=TRUE, as.data.frame=TRUE)
  #        sir1_data<- data.frame(time=a$time[-1],cases=a$cases[-1])
  #        plot(sir1_data$cases, type="l")
@@ -399,11 +401,11 @@ mifs_global %>%
   rename(f="L1") -> t
 
 
-ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
-  geom_line()+
-  guides(color=FALSE)+
-  labs(x="MIF2 Iteration",y="")+
-  facet_wrap(~variable,scales="free_y",ncol=2)+
+ggplot(t,aes(x=iteration,y=value,color=variable,group=f)) +
+  geom_line() +
+  guides(color=FALSE) +
+  labs(x="MIF2 Iteration",y="") +
+  facet_wrap(~variable,scales="free_y",ncol=2) +
   theme_bw()
 
 
@@ -646,11 +648,11 @@ mifs_global %>%
   melt() %>%  subset(iteration>0) %>%  mutate(variable = factor(variable)) %>% rename(f=L1) -> t
 
 ##Make the plot
-ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
-  geom_line()+
-  guides(color=FALSE)+
-  labs(x="MIF2 Iteration",y="")+
-  facet_wrap(~variable,scales="free_y",ncol=2)+
+ggplot(t,aes(x=iteration,y=value,color=variable,group=f)) +
+  geom_line() +
+  guides(color=FALSE) +
+  labs(x="MIF2 Iteration",y="") +
+  facet_wrap(~variable,scales="free_y",ncol=2) +
   theme_bw()
 
 
@@ -731,11 +733,11 @@ mifs_global %>%
   rename(f="L1") -> t
 ##colnames(t)[4]<- "f"
 
-ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
-  geom_line()+
-  guides(color=FALSE)+
-  labs(x="MIF2 Iteration",y="")+
-  facet_wrap(~variable,scales="free_y",ncol=2)+
+ggplot(t, aes(x=iteration,y=value,color=variable,group=f)) +
+  geom_line() +
+  guides(color=FALSE) +
+  labs(x="MIF2 Iteration",y="") +
+  facet_wrap(~variable,scales="free_y",ncol=2) +
   theme_bw()
 
 
@@ -825,11 +827,11 @@ mifs_global %>%
 
 
 ##Make the plot
-ggplot(t,aes(x=iteration,y=value,color=variable,group=f))+
-  geom_line()+
-  guides(color=FALSE)+
-  labs(x="MIF2 Iteration",y="")+
-  facet_wrap(~variable,scales="free_y",ncol=2)+
+ggplot(t,aes(x=iteration,y=value,color=variable,group=f)) +
+  geom_line() +
+  guides(color=FALSE) +
+  labs(x="MIF2 Iteration",y="") +
+  facet_wrap(~variable,scales="free_y",ncol=2) +
   theme_bw()
 
 
@@ -857,18 +859,32 @@ res<- c(sir1_aic=sir1_aic,
         sir_seas_cross_aic=sir_seas_cross_aic,
         sir1_cross_seas_aic=sir1_cross_seas_aic)
 
+##Store AIC for each
 coef_list[[i]] <-  res
 }
 
-
+##hoehle 2018-05-03: hier fehlt ein Kommentar, was nun hier passiert?
 coef_list
+names(coef_list) <- 1:10
 t(sapply(coef_list, c))[,c("sir1_aic","sir2_cross_aic")]
 t(sapply(coef_list, c))[,c("sir2_aic","sir1_cross_aic")]
 t(sapply(coef_list, c))[,c("sir_seas_aic","sir1_cross_seas_aic")]
 t(sapply(coef_list, c))[,c("sir1_aic","sir_seas_cross_aic")]
 
-sum(t(sapply(coef_list, c))[,c("sir1_aic")]<t(sapply(coef_list, c))[,c("sir2_cross_aic")])
-sum(t(sapply(coef_list, c))[,c("sir2_aic")]<t(sapply(coef_list, c))[,c("sir1_cross_aic")])
+##hoehle 2018-05-03: better imho - do it tibble style
+tbl <- as.data.frame(t(bind_rows(coef_list)))
+names(tbl) <- names(coef_list[[1]])
 
-sum(t(sapply(coef_list, c))[,c("sir_seas_aic")]<t(sapply(coef_list, c))[,c("sir1_cross_seas_aic")])
-sum(t(sapply(coef_list, c))[,c("sir1_aic")]<t(sapply(coef_list, c))[,c("sir_seas_cross_aic")])
+tbl %>% select(sir1_aic,sir2_cross_aic)
+
+tbl %>% summarise( `1betterThan2_on1` = mean(sir1_aic < sir2_cross_aic),
+                   `2betterThan1_on2` = mean(sir2_aic < sir1_cross_aic),
+                   `seas_1betterThan2_on1` = mean(sir_seas_aic < sir1_cross_seas_aic),
+                   `seas_2betterThan1_on2` = mean(sir1_aic < sir_seas_cross_aic))
+
+##hoehle 2018-05-03: this is ugly code :-)
+# sum(t(sapply(coef_list, c))[,c("sir1_aic")]<t(sapply(coef_list, c))[,c("sir2_cross_aic")])
+# sum(t(sapply(coef_list, c))[,c("sir2_aic")]<t(sapply(coef_list, c))[,c("sir1_cross_aic")])
+# 
+# sum(t(sapply(coef_list, c))[,c("sir_seas_aic")]<t(sapply(coef_list, c))[,c("sir1_cross_seas_aic")])
+# sum(t(sapply(coef_list, c))[,c("sir1_aic")]<t(sapply(coef_list, c))[,c("sir_seas_cross_aic")])
