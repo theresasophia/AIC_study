@@ -1,14 +1,14 @@
 
 ##' ## Explanation what is happening here (Comment this nicely)
 ##' ### Simple SIR.
-##' The aim of this study is to check for two psecific cases how well AIC can identify 
+##' The aim of this study is to check for two specific cases how well AIC can identify 
 ##' misspecifications in the transmission model. For this we construct a simple SIRS model with birth and death 
-##' in POMP and choose the parameters in way so the system can equilirate in the endemic state. We will only estimate
-##' the number of infectious contacts, bceause we want the exaple to resemble the model in the manuscript as much as possible
-##' The observations are the number of newly reported cases aggreagted over one week. Addditionally we construct an SIRS 
-##' where the infectious period is gamma distributed. We simulate from both odel and treat the obtained observations as two data set. 
-##' We fit them to both model and calculate the AIC. We repeat this for 10 times. The reuslts ( how often did the AIC choose the right model)
-##' are shown below. Addtitionally we compared the SIRS model with exponential distributed waiting times in endemic state to an SIRS model with 
+##' in POMP and choose the parameters in way so the system can equilibrate in the endemic state. We will only estimate
+##' the number of infectious contacts, because we want the example to resemble the model in the manuscript as much as possible
+##' The observations are the number of newly reported cases aggregated over one week. Additionally we construct an SIRS 
+##' where the infectious period is gamma distributed. We simulate from both models and treat the obtained observations as two data set. 
+##' We fit them to both model and calculate the AIC. We repeat this for 10 times. The results (how often did the AIC choose the right model)
+##' are shown below. Additionally we compared the SIRS model with exponential distributed waiting times in endemic state to an SIRS model with 
 ##' seasonality and did the same. We find that...
 
 rm(list = ls())     # clear objects

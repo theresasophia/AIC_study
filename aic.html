@@ -120,7 +120,7 @@ $(document).ready(function () {
 
 <h1 class="title toc-ignore">aic.R</h1>
 <h4 class="author"><em>Theresa</em></h4>
-<h4 class="date"><em>Fri May 4 12:43:10 2018</em></h4>
+<h4 class="date"><em>Fri May 4 12:50:10 2018</em></h4>
 
 </div>
 
@@ -129,7 +129,7 @@ $(document).ready(function () {
 <h2>Explanation what is happening here (Comment this nicely)</h2>
 <div id="simple-sir." class="section level3">
 <h3>Simple SIR.</h3>
-<p>The aim of this study is to check for two psecific cases how well AIC can identify misspecifications in the transmission model. For this we construct a simple SIRS model with birth and death in POMP and choose the parameters in way so the system can equilirate in the endemic state. We will only estimate the number of infectious contacts, bceause we want the exaple to resemble the model in the manuscript as much as possible The observations are the number of newly reported cases aggreagted over one week. Addditionally we construct an SIRS where the infectious period is gamma distributed. We simulate from both odel and treat the obtained observations as two data set. We fit them to both model and calculate the AIC. We repeat this for 10 times. The reuslts ( how often did the AIC choose the right model) are shown below. Addtitionally we compared the SIRS model with exponential distributed waiting times in endemic state to an SIRS model with seasonality and did the same. We find that…</p>
+<p>The aim of this study is to check for two specific cases how well AIC can identify misspecifications in the transmission model. For this we construct a simple SIRS model with birth and death in POMP and choose the parameters in way so the system can equilibrate in the endemic state. We will only estimate the number of infectious contacts, because we want the example to resemble the model in the manuscript as much as possible The observations are the number of newly reported cases aggregated over one week. Additionally we construct an SIRS where the infectious period is gamma distributed. We simulate from both models and treat the obtained observations as two data set. We fit them to both model and calculate the AIC. We repeat this for 10 times. The results ( how often did the AIC choose the right model) are shown below. Additionally we compared the SIRS model with exponential distributed waiting times in endemic state to an SIRS model with seasonality and did the same. We find that…</p>
 <pre class="r"><code>rm(list = ls())     # clear objects
 graphics.off()      #close graphics windows</code></pre>
 <p>Taken from v69i12.R</p>
