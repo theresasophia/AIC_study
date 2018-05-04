@@ -1,3 +1,16 @@
+
+##' ## Explanation what is happening here (Comment this nicely)
+##' ### Simple SIR.
+##' The aim of this study is to check for two psecific cases how well AIC can identify 
+##' misspecifications in the transmission model. For this we construct a simple SIRS model with birth and death 
+##' in POMP and choose the parameters in way so the system can equilirate in the endemic state. We will only estimate
+##' the number of infectious contacts, bceause we want the exaple to resemble the model in the manuscript as much as possible
+##' The observations are the number of newly reported cases aggreagted over one week. Addditionally we construct an SIRS 
+##' where the infectious period is gamma distributed. We simulate from both odel and treat the obtained observations as two data set. 
+##' We fit them to both model and calculate the AIC. We repeat this for 10 times. The reuslts ( how often did the AIC choose the right model)
+##' are shown below. Addtitionally we compared the SIRS model with exponential distributed waiting times in endemic state to an SIRS model with 
+##' seasonality and did the same. We find that...
+
 rm(list = ls())     # clear objects
 graphics.off()      #close graphics windows
 #' Taken from v69i12.R
@@ -14,15 +27,21 @@ cores <- 8
 registerDoParallel(cores)
 mcopts <- list(set.seed=TRUE)
 
+
+#
+##' ### Simple SIR.
+##' C snippets expressing the two faces of the measurement model.
+
+
 N <- 10  # number of simulations to generate
 coef_list <- vector("list", N)
 
 for(i in 1:N){
 
-##' Simple SIRS.
-##' C snippets expressing the two faces of the measurement model.
+## Simple SIRS.
+## C snippets expressing the two faces of the measurement model.
 
-#'hoehle 2018-05-03: whenwhere is give_log defined?
+#hoehle 2018-05-03: whenwhere is give_log defined?
 dmeas <- "if (ISNA(cases)) {
                   lik = (give_log) ? 0 : 1;
                   } else {
@@ -34,12 +53,12 @@ rmeas <- "
  cases = rnbinom_mu(theta,H);
 "
 
-##' The process model simulator.
-##' This takes one step from time t -> t+dt
-##' The per-capita rates of the elementary transitions are stored in 'rate'.
-##' The numbers of individuals making each transition is stored in 'trans'.
-##' Births are Poisson, transitions are Euler-multinomial.
-##' 'H' accumulates the recoveries (and will be zeroed after each observation).
+## The process model simulator.
+## This takes one step from time t -> t+dt
+## The per-capita rates of the elementary transitions are stored in 'rate'.
+## The numbers of individuals making each transition is stored in 'trans'.
+## Births are Poisson, transitions are Euler-multinomial.
+## 'H' accumulates the recoveries (and will be zeroed after each observation).
 
 sir.step <- "
   double rate[7];
@@ -88,7 +107,7 @@ param_vec <- c(popsize = 10000, Beta = 4, gamma = 1, mu = 1/(80*52),
                theta = 100, S.0 = 90000, I.0 = 10, R.0 = 0, omega=1/4)
 
 
-#'load the simulated data set - they were simulated form sir1 and sir 2 as explained below
+#load the simulated data set - they were simulated form sir1 and sir 2 as explained below
 read.table(paste("sir1_data",i,".txt", sep="")) %>%
   rbind(data.frame(time=0,cases=NA)) %>%
   arrange(time) -> sir1_dat
@@ -104,8 +123,8 @@ read.table(paste("sir_seas_data",i,".txt", sep="")) %>%
   arrange(time) -> sir_seas_dat
 head(sir_seas_dat)
 
-#' Construct the pomp object and fill with simulated data.
-#' we start at t0=-10 so the system has time to equilibrate and reach the endemic level
+# Construct the pomp object and fill with simulated data.
+# we start at t0=-10 so the system has time to equilibrate and reach the endemic level
 sir1 <- pomp(data =sir1_dat,
              times = "time",
              t0 = -10,
@@ -125,14 +144,13 @@ sir1 <- pomp(data =sir1_dat,
              fromEstimationScale = fromEstScale,
              params = param_vec)
 
- plot(sir1)
- #'This is how the data was created
- #'  we create 10 simulations, seed starts from 0, 01, etc last 01112345678= 8 and 01112345670 =9
- #' hoehle 2018-05-03: why not seed = 01112345670 + N?
- #'        a<- simulate(sir1,seed = 01112345670, obs=TRUE, as.data.frame=TRUE)
- #'        sir1_data<- data.frame(time=a$time[-1],cases=a$cases[-1])
- #'        plot(sir1_data$cases, type="l")
- #'        write.table(sir1_data, file = "~/Dropbox/AIC_study/AIC_study_git/sir1_data9.txt" )
+ #This is how the data was created
+ #  we create 10 simulations, seed starts from 0, 01, etc last 01112345678= 8 and 01112345670 =9
+ # hoehle 2018-05-03: why not seed = 01112345670 + N?
+ #        a<- simulate(sir1,seed = 01112345670, obs=TRUE, as.data.frame=TRUE)
+ #        sir1_data<- data.frame(time=a$time[-1],cases=a$cases[-1])
+ #        plot(sir1_data$cases, type="l")
+ #        write.table(sir1_data, file = "~/Dropbox/AIC_study/AIC_study_git/sir1_data9.txt" )
 
 ######################################################################
 ##Fit model 1
@@ -146,7 +164,7 @@ sir_box <- rbind(
 sir_fixed_params <- param_vec[c("gamma","omega","theta","mu","popsize","S.0","I.0","R.0")]
 
 
-#' Fitting using iterated filtering with drawing 8 times from the sir_box
+# Fitting using iterated filtering with drawing 8 times from the sir_box
 stew(file=paste("sir1_",i,".rda", sep=""),{
 
   t_global <- system.time({
@@ -277,7 +295,7 @@ sir2 <- pomp(data = sir2_dat,
              fromEstimationScale = fromEstScale,
              params = param_vec2)
 
-plot(sir2)
+
    #  a<- simulate(sir2,seed = 01234556789, obs=TRUE, as.data.frame=TRUE)
    #   sir2_data<- data.frame(time=a$time[-1],cases=a$cases[-1])
    #   plot(sir2_data$cases, type="l")
@@ -861,10 +879,9 @@ res<- c(sir1_aic=sir1_aic,
 coef_list[[i]] <-  res
 }
 
-
+#' we now want to check how well AIC can identify everything
 names(coef_list) <- 1:10
 
-##hoehle 2018-05-03: better imho - do it tibble style
 tbl <- as.data.frame(t(bind_rows(coef_list)))
 names(tbl) <- names(coef_list[[1]])
 
